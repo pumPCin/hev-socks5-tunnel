@@ -203,6 +203,7 @@ services:
       SOCKS5_USERNAME: user # optional, socks5 proxy username, only set when need to auth
       SOCKS5_PASSWORD: pass # optional, socks5 proxy password, only set when need to auth
       SOCKS5_UDP_MODE: udp # optional, UDP relay mode, default `udp`, other option `tcp`
+      CONFIG_ROUTES: 1 # optional, set 0 to ignore TABLE, IPV4_INCLUDED_ROUTES and IPV4_EXCLUDED_ROUTES, with MARK defaults to 0
       IPV4_INCLUDED_ROUTES: 0.0.0.0/0 # optional, demo means proxy all traffic. for multiple network segments, join with `,` or `\n`
       IPV4_EXCLUDED_ROUTES: a.b.c.d # optional, demo means exclude traffic from the proxy itself. for multiple network segments, join with `,` or `\n`
       LOG_LEVEL: warn # optional, default `warn`, other option `debug`/`info`/`error`
@@ -313,6 +314,7 @@ void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
 * **hev** - https://hev.cc
 * **pronebird** - https://github.com/pronebird
 * **saeeddev94** - https://github.com/saeeddev94
+* **sskaje** - https://github.com/sskaje
 * **wankkoree** - https://github.com/wankkoree
 * **yiguous** - https://github.com/yiguous
 * **xz-dev** - https://github.com/xz-dev
