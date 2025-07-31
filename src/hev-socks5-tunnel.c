@@ -2,7 +2,7 @@
  ============================================================================
  Name        : hev-socks5-tunnel.c
  Author      : hev <r@hev.cc>
- Copyright   : Copyright (c) 2019 - 2023 hev
+ Copyright   : Copyright (c) 2019 - 2025 hev
  Description : Socks5 Tunnel
  ============================================================================
  */
@@ -29,10 +29,12 @@
 
 #include "hev-exec.h"
 #include "hev-list.h"
-#include "hev-compiler.h"
 #include "hev-config.h"
 #include "hev-logger.h"
 #include "hev-tunnel.h"
+#include "hev-compiler.h"
+#include "hev-mapped-dns.h"
+#include "hev-config-const.h"
 #include "hev-socks5-session-tcp.h"
 #include "hev-socks5-session-udp.h"
 
@@ -71,21 +73,7 @@ netif_output_handler (struct netif *netif, struct pbuf *p)
 {
     ssize_t s;
 
-    if (p->next) {
-        struct iovec iov[512];
-        int i;
-
-        for (i = 1; p && (i < 512); p = p->next) {
-            iov[i].iov_base = p->payload;
-            iov[i].iov_len = p->len;
-            i++;
-        }
-
-        s = hev_tunnel_writev (tun_fd, iov, i);
-    } else {
-        s = hev_tunnel_write (tun_fd, p->payload, p->len);
-    }
-
+    s = hev_tunnel_write (tun_fd, p);
     if (s <= 0) {
         if (errno == EAGAIN)
             return ERR_WOULDBLOCK;
@@ -168,17 +156,58 @@ tcp_accept_handler (void *arg, struct tcp_pcb *pcb, err_t err)
 }
 
 static void
+dns_recv_handler (void *arg, struct udp_pcb *pcb, struct pbuf *p,
+                  const ip_addr_t *addr, u16_t port)
+{
+    HevMappedDNS *dns = arg;
+    struct pbuf *b;
+    int res;
+
+    LOG_D ("%p mapped dns handle", dns);
+
+    b = pbuf_alloc (PBUF_TRANSPORT, UDP_BUF_SIZE, PBUF_RAM);
+    if (!b)
+        goto exit;
+
+    res = hev_mapped_dns_handle (dns, p->payload, p->len, b->payload, b->len);
+    if (res < 0)
+        goto free;
+
+    b->len = res;
+    b->tot_len = res;
+    udp_sendfrom (pcb, b, &pcb->local_ip, pcb->local_port);
+
+free:
+    pbuf_free (b);
+exit:
+    pbuf_free (p);
+    udp_recv (pcb, NULL, NULL);
+    udp_remove (pcb);
+}
+
+static void
 udp_recv_handler (void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port)
 {
     HevSocks5SessionUDP *udp;
     HevListNode *node;
+    HevMappedDNS *dns;
     int stack_size;
     HevTask *task;
 
     if (!run) {
         udp_remove (pcb);
         return;
+    }
+
+    dns = hev_mapped_dns_get ();
+    if (dns && addr->type == IPADDR_TYPE_V4) {
+        int faddr = hev_config_get_mapdns_address ();
+        int fport = hev_config_get_mapdns_port ();
+        if (fport == port && faddr == ip_2_ip4 (addr)->addr) {
+            udp_recv (pcb, dns_recv_handler, dns);
+            return;
+        }
     }
 
     udp = hev_socks5_session_udp_new (pcb, &mutex);
@@ -234,33 +263,17 @@ lwip_io_task_entry (void *data)
 
     LOG_D ("socks5 tunnel lwip task run");
 
-    hev_task_add_fd (task_lwip_io, tun_fd, POLLIN);
+    hev_tunnel_add_task (tun_fd, task_lwip_io);
 
     for (; run;) {
         struct pbuf *buf;
-        ssize_t s;
 
-        hev_task_mutex_lock (&mutex);
-        buf = pbuf_alloc (PBUF_RAW, mtu, PBUF_RAM);
-        hev_task_mutex_unlock (&mutex);
-        if (!buf) {
-            LOG_E ("socks5 tunnel alloc");
-            hev_task_sleep (100);
+        buf = hev_tunnel_read (tun_fd, mtu, task_io_yielder, NULL);
+        if (!buf)
             continue;
-        }
-
-        s = hev_tunnel_read (tun_fd, buf->payload, buf->len, task_io_yielder,
-                             NULL);
-
-        if (s <= 0) {
-            if (s > -2)
-                LOG_W ("socks5 tunnel read");
-            pbuf_free (buf);
-            continue;
-        }
 
         stat_tx_packets++;
-        stat_tx_bytes += s;
+        stat_tx_bytes += buf->tot_len;
 
         hev_task_mutex_lock (&mutex);
         if (netif.input (buf, &netif) != ERR_OK)
@@ -268,7 +281,7 @@ lwip_io_task_entry (void *data)
         hev_task_mutex_unlock (&mutex);
     }
 
-    hev_task_del_fd (task_lwip_io, tun_fd);
+    hev_tunnel_del_task (tun_fd, task_lwip_io);
 }
 
 static void
@@ -363,7 +376,8 @@ tunnel_init (int extern_tun_fd)
 
     script_path = hev_config_get_tunnel_post_up_script ();
     if (script_path)
-        hev_exec_run (script_path, hev_tunnel_get_name (), 0);
+        hev_exec_run (script_path, hev_tunnel_get_name (),
+                      hev_tunnel_get_index (), 0);
 
     tun_fd_local = 1;
     return 0;
@@ -379,7 +393,8 @@ tunnel_fini (void)
 
     script_path = hev_config_get_tunnel_pre_down_script ();
     if (script_path)
-        hev_exec_run (script_path, hev_tunnel_get_name (), 1);
+        hev_exec_run (script_path, hev_tunnel_get_name (),
+                      hev_tunnel_get_index (), 1);
 
     hev_tunnel_close (tun_fd);
     tun_fd_local = 0;
@@ -435,15 +450,15 @@ event_task_init (void)
     int nonblock = 1;
     int res;
 
-    res = pipe (event_fds);
+    res = socketpair (PF_LOCAL, SOCK_STREAM, 0, event_fds);
     if (res < 0) {
-        LOG_E ("socks5 tunnel pipe");
+        LOG_E ("socks5 tunnel event");
         return -1;
     }
 
     res = ioctl (event_fds[0], FIONBIO, (char *)&nonblock);
     if (res < 0) {
-        LOG_E ("socks5 tunnel pipe nonblock");
+        LOG_E ("socks5 tunnel event nonblock");
         return -1;
     }
 
@@ -482,7 +497,7 @@ lwip_io_task_init (void)
         LOG_E ("socks5 tunnel task lwip");
         return -1;
     }
-    hev_task_set_priority (task_lwip_io, HEV_TASK_PRIORITY_REALTIME);
+    hev_task_set_priority (task_lwip_io, 1);
 
     return 0;
 }
@@ -504,7 +519,7 @@ lwip_timer_task_init (void)
         LOG_E ("socks5 tunnel task timer");
         return -1;
     }
-    hev_task_set_priority (task_lwip_timer, HEV_TASK_PRIORITY_REALTIME);
+    hev_task_set_priority (task_lwip_timer, 1);
 
     return 0;
 }
@@ -515,6 +530,42 @@ lwip_timer_task_fini (void)
     if (task_lwip_timer) {
         hev_task_unref (task_lwip_timer);
         task_lwip_timer = NULL;
+    }
+}
+
+static int
+mapped_dns_init (void)
+{
+    HevMappedDNS *dns;
+    int cache_size;
+    int network;
+    int netmask;
+
+    network = hev_config_get_mapdns_network ();
+    netmask = hev_config_get_mapdns_netmask ();
+    cache_size = hev_config_get_mapdns_cache_size ();
+
+    if (!cache_size)
+        return 0;
+
+    dns = hev_mapped_dns_new (network, netmask, cache_size);
+    if (!dns)
+        return -1;
+
+    hev_mapped_dns_put (dns);
+
+    return 0;
+}
+
+static void
+mapped_dns_fini (void)
+{
+    HevMappedDNS *dns;
+
+    dns = hev_mapped_dns_get ();
+    if (dns) {
+        hev_object_unref (HEV_OBJECT (dns));
+        hev_mapped_dns_put (NULL);
     }
 }
 
@@ -545,6 +596,10 @@ hev_socks5_tunnel_init (int tun_fd)
     if (res < 0)
         goto exit;
 
+    res = mapped_dns_init ();
+    if (res < 0)
+        goto exit;
+
     signal (SIGPIPE, SIG_IGN);
 
     hev_task_mutex_init (&mutex);
@@ -561,6 +616,7 @@ hev_socks5_tunnel_fini (void)
 {
     LOG_D ("socks5 tunnel fini");
 
+    mapped_dns_fini ();
     lwip_timer_task_fini ();
     lwip_io_task_fini ();
     event_task_fini ();

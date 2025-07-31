@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <net/if.h>
@@ -112,12 +113,6 @@ exit:
     return res;
 }
 
-const char *
-hev_tunnel_get_name (void)
-{
-    return tun_name;
-}
-
 int
 hev_tunnel_set_ipv4 (const char *addr, unsigned int prefix)
 {
@@ -184,6 +179,35 @@ exit_close:
     close (fd);
 exit:
     return res;
+}
+
+const char *
+hev_tunnel_get_name (void)
+{
+    return tun_name;
+}
+
+const char *
+hev_tunnel_get_index (void)
+{
+    static char tun_index[16];
+    unsigned int index;
+
+    index = if_nametoindex (tun_name);
+    snprintf (tun_index, sizeof (tun_index) - 1, "%d", index);
+    return tun_index;
+}
+
+int
+hev_tunnel_add_task (int fd, HevTask *task)
+{
+    return hev_task_add_fd (task, fd, POLLIN);
+}
+
+void
+hev_tunnel_del_task (int fd, HevTask *task)
+{
+    hev_task_del_fd (task, fd);
 }
 
 #endif /* __linux__ */

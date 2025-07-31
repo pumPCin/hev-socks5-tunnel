@@ -2,14 +2,14 @@
 
 [![status](https://github.com/heiher/hev-socks5-tunnel/actions/workflows/build.yaml/badge.svg?branch=master&event=push)](https://github.com/heiher/hev-socks5-tunnel)
 
-A tunnel over Socks5 proxy (tun2socks) for Unix.
+A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 
 ## Features
 
 * IPv4/IPv6. (dual stack)
 * Redirect TCP connections.
 * Redirect UDP packets. (Fullcone NAT, UDP-in-UDP and UDP-in-TCP [^1])
-* Linux/Android/FreeBSD/macOS/iOS/WSL2.
+* Linux/Android/FreeBSD/macOS/iOS/Windows.
 
 ## Benchmarks
 
@@ -56,6 +56,14 @@ git clone --recursive https://github.com/heiher/hev-socks5-tunnel
 cd hev-socks5-tunnel
 # will generate HevSocks5Tunnel.xcframework
 ./build-apple.sh
+```
+
+### Windows (MSYS2)
+```bash
+export MSYS=winsymlinks:native
+git clone --recursive https://github.com/heiher/hev-socks5-tunnel
+cd hev-socks5-tunnel
+make
 ```
 
 ### Library
@@ -108,23 +116,35 @@ socks5:
   # Socket mark
 # mark: 0
 
+#mapdns:
+  # Mapped DNS address
+# address: 198.18.0.2
+  # Mapped DNS port
+# port: 53
+  # Mapped IP network base
+# network: 240.0.0.0
+  # Mapped IP network mask
+# netmask: 240.0.0.0
+  # Mapped DNS cache size
+# cache-size: 10000
+
 #misc:
-   # task stack size (bytes)
-#  task-stack-size: 86016
-   # tcp buffer size (bytes)
-#  tcp-buffer-size: 65536
-   # connect timeout (ms)
-#  connect-timeout: 5000
-   # read-write timeout (ms)
-#  read-write-timeout: 60000
-   # stdout, stderr or file-path
-#  log-file: stderr
-   # debug, info, warn or error
-#  log-level: warn
-   # If present, run as a daemon with this pid file
-#  pid-file: /run/hev-socks5-tunnel.pid
-   # If present, set rlimit nofile; else use default value
-#  limit-nofile: 65535
+  # task stack size (bytes)
+# task-stack-size: 86016
+  # tcp buffer size (bytes)
+# tcp-buffer-size: 65536
+  # connect timeout (ms)
+# connect-timeout: 5000
+  # read-write timeout (ms)
+# read-write-timeout: 60000
+  # stdout, stderr or file-path
+# log-file: stderr
+  # debug, info, warn or error
+# log-level: warn
+  # If present, run as a daemon with this pid file
+# pid-file: /run/hev-socks5-tunnel.pid
+  # If present, set rlimit nofile; else use default value
+# limit-nofile: 65535
 ```
 
 ### Run
@@ -155,8 +175,21 @@ sudo ip -6 rule add lookup 20 pref 20
 sudo route add -net 10.0.0.1/32 10.0.2.2
 
 # Route others
-sudo route change -inet default -interface utun99
-sudo route change -inet6 default -interface utun99
+sudo route change -inet default -interface tun0
+sudo route change -inet6 default -interface tun0
+```
+
+#### Windows
+
+```zsh
+# Bypass upstream socks5 server
+# 10.0.0.1: socks5 server
+# 10.0.2.2: default gateway
+route add 10.0.0.1/32 10.0.2.2
+
+# Route others
+route change 0.0.0.0/0 0.0.0.0 if tun0
+route change ::/0 :: if tun0
 ```
 
 #### Low memory usage

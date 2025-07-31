@@ -33,13 +33,15 @@ include $(LOCAL_PATH)/build.mk
 LOCAL_MODULE    := hev-socks5-tunnel
 LOCAL_SRC_FILES := $(patsubst $(SRCDIR)/%,src/%,$(SRCFILES))
 LOCAL_C_INCLUDES := \
+	$(LOCAL_PATH)/src \
 	$(LOCAL_PATH)/src/misc \
 	$(LOCAL_PATH)/src/core/include \
 	$(LOCAL_PATH)/third-part/yaml/include \
 	$(LOCAL_PATH)/third-part/lwip/src/include \
 	$(LOCAL_PATH)/third-part/lwip/src/ports/include \
 	$(LOCAL_PATH)/third-part/hev-task-system/include
-LOCAL_CFLAGS += -DFD_SET_DEFINED -DSOCKLEN_T_DEFINED $(VERSION_CFLAGS)
+LOCAL_CFLAGS += -DFD_SET_DEFINED -DSOCKLEN_T_DEFINED -DENABLE_LIBRARY
+LOCAL_CFLAGS += $(VERSION_CFLAGS)
 ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
 LOCAL_CFLAGS += -mfpu=neon
 endif
