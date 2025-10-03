@@ -11,18 +11,16 @@
 
 #include "hev-logger.h"
 #include "hev-config.h"
-#include <lwip/udp.h>
-
-#include "hev-socks5.h"
 #include "hev-socks5-client.h"
+
 #include "hev-socks5-session.h"
-#include "hev-socks5-session-udp.h"
 
 void
 hev_socks5_session_run (HevSocks5Session *self)
 {
     HevSocks5SessionIface *iface;
     HevConfigServer *srv;
+    int read_write_timeout;
     int connect_timeout;
     int res;
 
@@ -30,6 +28,7 @@ hev_socks5_session_run (HevSocks5Session *self)
 
     srv = hev_config_get_socks5_server ();
     connect_timeout = hev_config_get_misc_connect_timeout ();
+    read_write_timeout = hev_config_get_misc_read_write_timeout ();
 
     hev_socks5_set_timeout (HEV_SOCKS5 (self), connect_timeout);
 
@@ -40,18 +39,7 @@ hev_socks5_session_run (HevSocks5Session *self)
         return;
     }
 
-    if (HEV_SOCKS5 (self)->type == HEV_SOCKS5_TYPE_TCP) {
-        int timeout = hev_config_get_misc_read_write_timeout ();
-        hev_socks5_set_timeout (HEV_SOCKS5 (self), timeout);
-    } else {
-        HevSocks5SessionUDP *udp = HEV_SOCKS5_SESSION_UDP (self);
-        if (udp->pcb->local_port == 53) {
-            hev_socks5_set_timeout (HEV_SOCKS5 (self), 10000);
-        } else {
-            int timeout = hev_config_get_misc_read_write_timeout ();
-            hev_socks5_set_timeout (HEV_SOCKS5 (self), timeout);
-        }
-    }
+    hev_socks5_set_timeout (HEV_SOCKS5 (self), read_write_timeout);
 
     if (srv->user && srv->pass) {
         hev_socks5_client_set_auth (HEV_SOCKS5_CLIENT (self), srv->user,

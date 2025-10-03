@@ -52,9 +52,9 @@ socks5:
   # tcp buffer size (bytes)
 # tcp-buffer-size: 65536
   # connect timeout (ms)
-# connect-timeout: 5000
+# connect-timeout: 10000
   # read-write timeout (ms)
-# read-write-timeout: 60000
+# read-write-timeout: 300000
   # stdout, stderr or file-path
 # log-file: stderr
   # debug, info, warn or error
