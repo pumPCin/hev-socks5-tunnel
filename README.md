@@ -135,12 +135,18 @@ socks5:
 # task-stack-size: 86016
   # tcp buffer size (bytes)
 # tcp-buffer-size: 65536
+  # udp socket recv buffer (SO_RCVBUF) size (bytes)
+# udp-recv-buffer-size: 524288
+  # number of udp buffers in splice, 1500 bytes per buffer.
+# udp-copy-buffer-nums: 10
   # maximum session count (0: unlimited)
 # max-session-count: 0
   # connect timeout (ms)
 # connect-timeout: 10000
-  # read-write timeout (ms)
-# read-write-timeout: 300000
+  # TCP read-write timeout (ms)
+# tcp-read-write-timeout: 300000
+  # UDP read-write timeout (ms)
+# udp-read-write-timeout: 60000
   # stdout, stderr or file-path
 # log-file: stderr
   # debug, info, warn or error
