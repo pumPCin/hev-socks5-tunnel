@@ -88,6 +88,8 @@ make shared
 tunnel:
   # Interface name
   name: tun0
+  # Interface GUID (Windows)
+# guid: 12345678-9abc-def0-1234-56789abcdef0
   # Interface MTU
   mtu: 8500
   # Multi-queue
@@ -407,21 +409,21 @@ APP_CFLAGS := -DPKGNAME=hev/sockstun -DCLSNAME=TProxyService
 
 The Android CI job also produces an AAR (`hev-socks5-tunnel.aar`, containing all four ABIs)
 built with the default JNI contract — no `PKGNAME`/`CLSNAME` overrides — so its natives
-register to `hev.htproxy.TProxyService`. The AAR is generic: instead of rebuilding it per
-consumer package, add a small shim class in your app:
+register to `hev.htproxy.TProxyService`. The AAR is self-contained: the binding class below
+is bundled in it (`classes.jar`, plus a `proguard.txt` that keeps it), so it is called
+directly and no shim class has to be added to the app:
 
-```kotlin
-// app/src/main/java/hev/htproxy/TProxyService.kt
-package hev.htproxy
+```java
+package hev.htproxy;
 
-object TProxyService {
-    external fun TProxyStartService(config_path: String, fd: Int): Boolean
-    external fun TProxyStopService(): Boolean
-    external fun TProxyIsRunning(): Boolean
-    external fun TProxyGetStats(): LongArray
+public final class TProxyService {
+    public static native boolean TProxyStartService(String config_path, int fd);
+    public static native boolean TProxyStopService();
+    public static native boolean TProxyIsRunning();
+    public static native long[] TProxyGetStats();
 
-    init {
-        System.loadLibrary("hev-socks5-tunnel")
+    static {
+        System.loadLibrary("hev-socks5-tunnel");
     }
 }
 ```
@@ -436,6 +438,7 @@ still override `PKGNAME`/`CLSNAME` in `Application.mk` as shown above and build 
 
 * [SocksTun](https://github.com/heiher/sockstun)
 * [Orbot](https://github.com/guardianproject/orbot-android)
+* [EasyssTun](https://github.com/nange/EasyssTun)
 
 ### iOS
 
@@ -452,6 +455,8 @@ still override `PKGNAME`/`CLSNAME` in `Application.mk` as shown above and build 
 * **hev** - https://hev.cc
 * **ihipop** - https://ihipop.com
 * **katana** - https://github.com/officialkatana
+* **nange** - https://github.com/nange
+* **plangto** - https://github.com/plangto
 * **pronebird** - https://github.com/pronebird
 * **saeeddev94** - https://github.com/saeeddev94
 * **sskaje** - https://github.com/sskaje
