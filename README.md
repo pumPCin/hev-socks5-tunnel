@@ -88,6 +88,8 @@ make shared
 tunnel:
   # Interface name
   name: tun0
+  # Interface GUID (Windows)
+# guid: 12345678-9abc-def0-1234-56789abcdef0
   # Interface MTU
   mtu: 8500
   # Multi-queue
@@ -454,6 +456,7 @@ still override `PKGNAME`/`CLSNAME` in `Application.mk` as shown above and build 
 * **ihipop** - https://ihipop.com
 * **katana** - https://github.com/officialkatana
 * **nange** - https://github.com/nange
+* **plangto** - https://github.com/plangto
 * **pronebird** - https://github.com/pronebird
 * **saeeddev94** - https://github.com/saeeddev94
 * **sskaje** - https://github.com/sskaje
