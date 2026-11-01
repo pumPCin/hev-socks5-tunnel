@@ -1,4 +1,4 @@
-name: "Build"
+name: "CI"
 
 on:
   push:
@@ -11,6 +11,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  code-format:
+    name: Code Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Prepare
+        run: |
+          sudo apt install -y clang-format
+      - name: Format
+        run: |
+          find src -iname "*.[h,c]" -exec clang-format -i {} \;
+      - name: Check
+        run: |
+          git status
+          git diff --quiet
+
   source:
     name: Source
     runs-on: ubuntu-latest
@@ -127,7 +146,7 @@ jobs:
           - name: arm64
             flags: -arch arm64 -mmacosx-version-min=11.0
           - name: x86_64
-            flags: -arch x86_64 -mmacosx-version-min=10.6
+            flags: -arch x86_64 -mmacosx-version-min=10.7
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -172,46 +191,105 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  windows:
-    name: Windows
+  windows-msvc-x64:
+    name: Windows (MSVC, x64)
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: cmd
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
           submodules: true
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          msystem: MSYS
-          location: D:\msys2
-          update: true
-          install: >-
-            gcc
-            git
-            make
-            wget
-            zip
-      - name: Build
-        shell: msys2 {0}
+          arch: x64
+      - name: Setup GNU make for Win32
+        shell: pwsh
         run: |
-          export MSYS=winsymlinks:native
-          git clone --depth=1 --recursive file://`pwd` work; cd work
-          make -j`nproc`
+          choco install make --no-progress -y
+          Add-Content $env:GITHUB_PATH "C:\Program Files\Git\usr\bin"
+      - name: Build
+        shell: cmd
+        run: |
+          make -j4
           mkdir hev-socks5-tunnel
-          cp bin/hev-socks5-tunnel* hev-socks5-tunnel
-          cp third-part/wintun/bin/wintun.dll hev-socks5-tunnel
-          wget -P hev-socks5-tunnel https://github.com/heiher/msys2/releases/latest/download/msys-2.0.dll
-          zip -r ../hev-socks5-tunnel-win64.zip hev-socks5-tunnel
-      - name: Upload ${{ matrix.name }}
+          copy bin\hev-socks5-tunnel.exe hev-socks5-tunnel
+          copy third-part\wintun\bin\amd64\wintun.dll hev-socks5-tunnel
+          powershell -Command "Compress-Archive -Path hev-socks5-tunnel -DestinationPath hev-socks5-tunnel-win-x64.zip"
+      - name: Upload x64
         uses: actions/upload-artifact@v7
         with:
-          name: hev-socks5-tunnel-win64.zip
-          path: hev-socks5-tunnel-win64.zip
+          name: hev-socks5-tunnel-win-x64.zip
+          path: hev-socks5-tunnel-win-x64.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-msvc-x86:
+    name: Windows (MSVC, x86)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          submodules: true
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+      - name: Setup GNU make for Win32
+        shell: pwsh
+        run: |
+          choco install make --no-progress -y
+          Add-Content $env:GITHUB_PATH "C:\Program Files\Git\usr\bin"
+      - name: Build
+        shell: cmd
+        run: |
+          make -j4 ARCH=x86
+          mkdir hev-socks5-tunnel
+          copy bin\hev-socks5-tunnel.exe hev-socks5-tunnel
+          copy third-part\wintun\bin\x86\wintun.dll hev-socks5-tunnel
+          powershell -Command "Compress-Archive -Path hev-socks5-tunnel -DestinationPath hev-socks5-tunnel-win-x86.zip"
+      - name: Upload x86
+        uses: actions/upload-artifact@v7
+        with:
+          name: hev-socks5-tunnel-win-x86.zip
+          path: hev-socks5-tunnel-win-x86.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-msvc-arm64:
+    name: Windows (MSVC, arm64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          submodules: true
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+      - name: Setup GNU make for Win32
+        shell: pwsh
+        run: |
+          choco install make --no-progress -y
+          Add-Content $env:GITHUB_PATH "C:\Program Files\Git\usr\bin"
+      - name: Build
+        shell: cmd
+        run: |
+          make -j4 ARCH=arm64
+          mkdir hev-socks5-tunnel
+          copy bin\hev-socks5-tunnel.exe hev-socks5-tunnel
+          copy third-part\wintun\bin\arm64\wintun.dll hev-socks5-tunnel
+          powershell -Command "Compress-Archive -Path hev-socks5-tunnel -DestinationPath hev-socks5-tunnel-win-arm64.zip"
+      - name: Upload arm64
+        uses: actions/upload-artifact@v7
+        with:
+          name: hev-socks5-tunnel-win-arm64.zip
+          path: hev-socks5-tunnel-win-arm64.zip
           if-no-files-found: error
           retention-days: 1
 
@@ -296,11 +374,14 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     needs:
+      - code-format
       - source
       - linux
       - macos
       - freebsd
-      - windows
+      - windows-msvc-x64
+      - windows-msvc-x86
+      - windows-msvc-arm64
       - android
     if: github.event_name == 'release'
     steps:
@@ -321,6 +402,53 @@ jobs:
           for i in release/hev-*; do
             gh release upload ${{ github.event.release.tag_name }} $i
           done
+
+  snapshot:
+    name: Snapshot
+    runs-on: ubuntu-latest
+    needs:
+      - code-format
+      - source
+      - linux
+      - macos
+      - freebsd
+      - windows-msvc-x64
+      - windows-msvc-x86
+      - windows-msvc-arm64
+      - android
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release
+          pattern: "hev-*"
+          merge-multiple: true
+      - name: Update snapshot tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f snapshot ${{ github.sha }}
+          git push -f origin refs/tags/snapshot
+      - name: Publish snapshot release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName')
+          if [ -n "${LAST}" ]; then
+            NOTES="Full Changelog: https://github.com/${{ github.repository }}/compare/${LAST}...snapshot"
+          else
+            NOTES="Full Changelog: https://github.com/${{ github.repository }}/commits/snapshot"
+          fi
+          gh release delete snapshot --yes || true
+          gh release create snapshot --prerelease --verify-tag \
+            --title snapshot --notes "${NOTES}" release/hev-*
 
   apple:
     name: Apple

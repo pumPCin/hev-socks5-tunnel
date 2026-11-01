@@ -10,8 +10,15 @@
 #ifndef __HEV_TUNNEL_H__
 #define __HEV_TUNNEL_H__
 
-#include <netinet/in.h>
-#include <sys/socket.h>
+enum
+{
+    HEV_TUNNEL_OFFLOAD_CSUM = 1 << 0,
+    HEV_TUNNEL_OFFLOAD_TCP = 1 << 1,
+    HEV_TUNNEL_OFFLOAD_UDP = 1 << 2,
+    HEV_TUNNEL_OFFLOAD_JUMBO = 1 << 3,
+};
+
+#include <hev-sys.h>
 #include <lwip/pbuf.h>
 
 #if defined(__linux__)
@@ -30,9 +37,9 @@
 #include "hev-tunnel-macos.h"
 #endif /* __APPLE__ || __MACH__ */
 
-#if defined(__MSYS__)
+#ifdef _WIN32
 #include "hev-tunnel-windows.h"
-#endif /* __MSYS__ */
+#endif /* _WIN32 */
 
 #if defined(HEV_TUNNEL_GENERIC_HEAD)
 static inline struct pbuf *
@@ -141,6 +148,9 @@ hev_tunnel_write (int fd, struct pbuf *buf)
 
 int hev_tunnel_open (const char *name, int multi_queue, const char *guid);
 void hev_tunnel_close (int fd);
+
+void hev_tunnel_set_offload (int fd, int offload);
+int hev_tunnel_get_offload (void);
 
 int hev_tunnel_set_mtu (int mtu);
 int hev_tunnel_set_state (int state);

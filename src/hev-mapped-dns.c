@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <arpa/inet.h>
+#include <hev-sys.h>
 
 #include <hev-compiler.h>
 #include <hev-memory-allocator.h>
@@ -85,7 +85,7 @@ hev_mapped_dns_node_alloc (const char *name)
 
     node->name = strdup (name);
     if (!node->name) {
-        free (node);
+        hev_free (node);
         return NULL;
     }
 

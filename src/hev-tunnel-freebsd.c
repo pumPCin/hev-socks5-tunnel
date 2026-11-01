@@ -40,11 +40,11 @@ hev_tunnel_open (const char *name, int multi_queue, const char *guid)
     int tfd;
 
     snprintf (buf, sizeof (buf), "/dev/%s", name);
-    tfd = hev_task_io_open (buf, O_RDWR);
+    tfd = hev_task_io_open (buf, O_RDWR | O_CLOEXEC);
     if (tfd >= 0)
         goto found;
 
-    tfd = hev_task_io_open ("/dev/tun", O_RDWR);
+    tfd = hev_task_io_open ("/dev/tun", O_RDWR | O_CLOEXEC);
     if (tfd < 0)
         goto fail;
 
@@ -92,6 +92,17 @@ hev_tunnel_close (int fd)
     ioctl (fd, SIOCIFDESTROY, (void *)&ifr);
 
     close (fd);
+}
+
+void
+hev_tunnel_set_offload (int fd, int offload)
+{
+}
+
+int
+hev_tunnel_get_offload (void)
+{
+    return 0;
 }
 
 int

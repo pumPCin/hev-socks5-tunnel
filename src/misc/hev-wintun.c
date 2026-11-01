@@ -7,7 +7,7 @@
  ============================================================================
  */
 
-#if defined(__MSYS__)
+#ifdef _WIN32
 
 #include <wintun.h>
 #include <netioapi.h>
@@ -207,7 +207,7 @@ hev_wintun_adapter_set_ipv6 (HevWinTunAdapter *adapter, char addr[16],
 HevWinTunSession *
 hev_wintun_session_start (HevWinTunAdapter *adapter)
 {
-    return WintunStartSession (adapter, 0x400000);
+    return WintunStartSession (adapter, 0x800000);
 }
 
 void
@@ -252,4 +252,4 @@ hev_wintun_get_last_error (void)
     return GetLastError ();
 }
 
-#endif /* __MSYS__ */
+#endif /* _WIN32 */
