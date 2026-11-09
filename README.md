@@ -168,6 +168,9 @@ socks5:
 #misc:
   # task stack size (bytes)
 # task-stack-size: 86016
+  # wintun ring buffer capacity (bytes, windows only, power of two,
+  # range: 131072 - 67108864)
+# wintun-ring-capacity: 524288
   # tcp buffer size (bytes)
 # tcp-buffer-size: 65536
   # udp socket recv buffer (SO_RCVBUF) size (bytes)
@@ -488,25 +491,32 @@ still override `PKGNAME`/`CLSNAME` in `Application.mk` as shown above and build 
 
 ## Contributors
 
+* **acidroper** - https://github.com/acidroper
 * **arror** - https://github.com/arror
 * **bazuchan** - https://github.com/bazuchan
+* **bitmold** - https://github.com/bitmold
 * **codewithtamim** - https://github.com/codewithtamim
+* **daemooon** - https://github.com/daemooon
 * **dovecoteescapee** - https://github.com/dovecoteescapee
 * **ebrahimtahernejad** - https://github.com/ebrahimtahernejad
 * **egavr** - https://github.com/egavr
+* **fwx** - https://github.com/fwx
 * **heiby** - https://github.com/heiby
 * **hev** - https://hev.cc
 * **ihipop** - https://ihipop.com
 * **katana** - https://github.com/officialkatana
+* **mmjvox** - https://github.com/mmjvox
 * **nange** - https://github.com/nange
 * **plangto** - https://github.com/plangto
+* **popsiclelmlm** - https://github.com/popsiclelmlm
 * **pronebird** - https://github.com/pronebird
 * **saeeddev94** - https://github.com/saeeddev94
+* **simplerick-simplefun** - https://github.com/simplerick-simplefun
 * **sskaje** - https://github.com/sskaje
 * **wankkoree** - https://github.com/wankkoree
 * **xiguagua** - https://github.com/xiguagua
 * **xz-dev** - https://github.com/xz-dev
-* **yiguous** - https://github.com/yiguous
+* **yiguodev** - https://github.com/yiguodev
 * **yujinpan** - https://github.com/yujinpan
 * **zheshinicheng** - https://github.com/zheshinicheng
 
